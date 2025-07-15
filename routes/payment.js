@@ -1,8 +1,9 @@
 // server/routes/payment.js
 const express = require('express');
 const router = express.Router();
-const Stripe = require('stripe');
-const stripe = Stripe('sk_test_51Rkn5j4MGjbpiNn3cpvZKN8ilNPqHDXCdJfgsV2symYEBxP2SyhAqVSXmq3M1Nx51nLMpjDrm0kwOeVjuZJ8ykr400NeN08dna'); // Replace with your test secret key
+// const Stripe = require('stripe');
+// const stripe = Stripe('sk_test_51Rkn5j4MGjbpiNn3cpvZKN8ilNPqHDXCdJfgsV2symYEBxP2SyhAqVSXmq3M1Nx51nLMpjDrm0kwOeVjuZJ8ykr400NeN08dna'); // Replace with your test secret key
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
 router.post('/create-checkout-session', async (req, res) => {
   const { items, storeId, customerId } = req.body;
