@@ -38,7 +38,7 @@ FROM
 LEFT JOIN feedback f ON p.product_id = f.product_id AND f.store_id = p.store_id
 LEFT JOIN order_items oi ON p.product_id = oi.product_id AND oi.store_id = p.store_id
 WHERE 
-  p.store_id = 201
+  p.store_id = ?
 GROUP BY 
   p.product_id;
 
