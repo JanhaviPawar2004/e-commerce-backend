@@ -7,6 +7,11 @@ const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
 router.post('/create-checkout-session', async (req, res) => {
   const { items, storeId, customerId } = req.body;
+  console.log('Received items:', items); // Debug
+
+  if (!Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({ error: '❌ Items array is required and must not be empty.' });
+  }
 
   try {
     const session = await stripe.checkout.sessions.create({

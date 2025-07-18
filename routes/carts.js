@@ -1,11 +1,12 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('./db').promise(); // Make sure to use promise wrapper
+const { verifyCustomerToken } = require('./middleware');
 
 
 
 // ✅ Create or get active cart
-router.post('/carts', async (req, res) => {
+router.post('/carts',verifyCustomerToken, async (req, res) => {
   const { store_id, customer_id } = req.body;
 
   try {
@@ -45,7 +46,7 @@ router.post('/carts', async (req, res) => {
 });
 
 // ✅ Add item to cart
-router.post('/cart-items', async (req, res) => {
+router.post('/cart-items',verifyCustomerToken, async (req, res) => {
   const { cart_id, product_id, quantity } = req.body;
 
   try {
@@ -78,7 +79,7 @@ router.post('/cart-items', async (req, res) => {
 });
 
 // ✅ Get items in cart
-router.get('/carts/:storeId/:customerId/items', async (req, res) => {
+router.get('/carts/:storeId/:customerId/items',verifyCustomerToken, async (req, res) => {
   const { storeId, customerId } = req.params;
 
   const query = `
@@ -99,7 +100,7 @@ router.get('/carts/:storeId/:customerId/items', async (req, res) => {
 });
 
 // ✅ Update cart item quantity
-router.put('/cart-items/:item_id', async (req, res) => {
+router.put('/cart-items/:item_id',verifyCustomerToken, async (req, res) => {
   const { quantity } = req.body;
   const { item_id } = req.params;
 
@@ -122,7 +123,7 @@ router.put('/cart-items/:item_id', async (req, res) => {
 });
 
 // ✅ Delete cart item
-router.delete('/cart-items/:item_id', async (req, res) => {
+router.delete('/cart-items/:item_id',verifyCustomerToken, async (req, res) => {
   const { item_id } = req.params;
 
   const deleteQuery = `DELETE FROM cart_items WHERE item_id = ?`;
@@ -136,80 +137,90 @@ router.delete('/cart-items/:item_id', async (req, res) => {
   }
 });
 
-// ✅ Place order from cart
-router.post('/cart/orders', async (req, res) => {
+router.post('/cart/orders',verifyCustomerToken, async (req, res) => {
   const { customer_id, store_id, total_amount, status, items } = req.body;
   const now = new Date();
 
+  if (!items || items.length === 0) {
+    return res.status(400).json({ error: 'No items provided for the order.' });
+  }
+
+  const conn = await pool.getConnection();
   try {
-    // Insert order
+    await conn.beginTransaction();
+
+    // ✅ Validate stock for each item
     for (const item of items) {
-      const [rows] = await pool.query(
+      const [rows] = await conn.query(
         'SELECT stock_quantity FROM products WHERE product_id = ? AND store_id = ?',
         [item.product_id, store_id]
       );
-
       if (rows.length === 0 || rows[0].stock_quantity < item.quantity) {
-        return res.status(400).json({
-          error: `❌ Product ID ${item.product_id} has insufficient stock`
-        });
+        throw new Error(`❌ Product ID ${item.product_id} has insufficient stock`);
       }
     }
-    
+
+    // ✅ Insert into orders
     const orderQuery = `
       INSERT INTO orders (date_ordered, total_amount, customer_id, status)
       VALUES (?, ?, ?, ?)
     `;
-    const [orderResult] = await pool.query(orderQuery, [now, total_amount, customer_id, status]);
+    const [orderResult] = await conn.query(orderQuery, [now, total_amount, customer_id, status]);
     const orderId = orderResult.insertId;
 
-    // Insert order items
+    // ✅ Insert into order_items
     const orderItems = items.map(item => [orderId, item.product_id, item.quantity, store_id]);
     const orderItemsQuery = `
       INSERT INTO order_items (order_id, product_id, quantity, store_id)
       VALUES ?
     `;
-    await pool.query(orderItemsQuery, [orderItems]);
+    await conn.query(orderItemsQuery, [orderItems]);
 
-
+    // ✅ Reduce stock
     for (const item of items) {
-      await pool.query(
+      await conn.query(
         'UPDATE products SET stock_quantity = stock_quantity - ? WHERE product_id = ? AND store_id = ?',
         [item.quantity, item.product_id, store_id]
       );
     }
 
-    
-    // Get active cart
-    const cartQuery = `
-      SELECT cart_id FROM carts
-      WHERE customer_id = ? AND store_id = ? AND status = 'active'
-    `;
-    const [cartResults] = await pool.query(cartQuery, [customer_id, store_id]);
-
+    // ✅ Get active cart ID
+    const [cartResults] = await conn.query(
+      `SELECT cart_id FROM carts WHERE customer_id = ? AND store_id = ? AND status = 'active'`,
+      [customer_id, store_id]
+    );
     if (cartResults.length === 0) {
-      return res.status(404).json({ error: 'No active cart found' });
+      throw new Error('No active cart found.');
     }
 
     const cart_id = cartResults[0].cart_id;
 
-    // Delete cart items
-    await pool.query('DELETE FROM cart_items WHERE cart_id = ?', [cart_id]);
+    // ✅ Clear cart items
+    await conn.query('DELETE FROM cart_items WHERE cart_id = ?', [cart_id]);
 
-    // Mark cart completed
-    await pool.query(
+    // ✅ Mark cart as completed
+    await conn.query(
       'UPDATE carts SET status = "completed", updated_at = NOW() WHERE cart_id = ?',
       [cart_id]
     );
 
-    res.status(201).json({ message: 'Order placed and cart cleared' });
+    // ✅ Commit transaction
+    await conn.commit();
+
+    res.status(201).json({ message: '✅ Order placed and cart cleared.' });
+
   } catch (err) {
+    // 🔁 Rollback on any error
+    await conn.rollback();
     console.error('Error placing order:', err);
-    res.status(500).json({ error: 'Failed to place order' });
+    res.status(500).json({ error: err.message || 'Failed to place order' });
+  } finally {
+    conn.release();
   }
 });
 
-router.post('/cart/orders/validate', async (req, res) => {
+
+router.post('/cart/orders/validate',verifyCustomerToken, async (req, res) => {
   const { store_id, items } = req.body;
 
   try {

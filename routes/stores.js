@@ -4,6 +4,7 @@ const pool = require('./db').promise(); // Promise-based pool
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const { authenticateShopOwner } = require('./middleware'); // path as needed
 
 // ✅ Multer setup
 const storage = multer.diskStorage({
@@ -17,7 +18,7 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 // ✅ GET /api/adminstore?storeId=xxx — Public store fetch by ID
-router.get('/', async (req, res) => {
+router.get('/',authenticateShopOwner, async (req, res) => {
   const storeId = req.query.storeId;
 
   if (!storeId) return res.status(400).json({ error: 'Missing storeId' });
@@ -33,7 +34,7 @@ router.get('/', async (req, res) => {
 });
 
 // ✅ PUT /api/adminstore?storeId=xxx — Public store update by ID
-router.put('/', upload.fields([
+router.put('/',authenticateShopOwner, upload.fields([
   { name: 'landing_image', maxCount: 1 },
   { name: 'store_photo', maxCount: 1 },
 ]), async (req, res) => {
@@ -108,4 +109,37 @@ router.put('/', upload.fields([
   }
 });
 
+// ✅ GET /api/store/:store_id
+router.get('/:store_id', authenticateShopOwner,async (req, res) => {
+  const storeId = req.params.store_id;
+
+  try {
+    const [storeRows] = await pool.query(
+      `SELECT store_name, store_tagline, landing_image, store_photo, store_address, instagram_link, facebook_link, store_email, store_desc 
+       FROM stores 
+       WHERE store_id = ?`,
+      [storeId]
+    );
+
+    if (storeRows.length === 0) {
+      return res.status(404).json({ message: 'Store not found' });
+    }
+
+    const [reviewRows] = await pool.query(
+      `SELECT customer_name, rating, review_text, created_at 
+       FROM store_reviews 
+       WHERE store_id = ? 
+       ORDER BY created_at DESC`,
+      [storeId]
+    );
+
+    res.json({
+      store: storeRows[0],
+      reviews: reviewRows
+    });
+  } catch (err) {
+    console.error('Error fetching store details:', err);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
 module.exports = router;

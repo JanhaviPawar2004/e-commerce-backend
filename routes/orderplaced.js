@@ -1,30 +1,30 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('./db').promise(); // Make sure to use promise wrapper
-
-
+const { verifyCustomerToken } = require('./middleware');
 
 // GET /api/customer/:customerId/store/:storeId/orders
-router.get('/customer/:customerId/store/:storeId/orders', async (req, res) => {
+router.get('/customer/:customerId/store/:storeId/orders',verifyCustomerToken, async (req, res) => {
   const { customerId, storeId } = req.params;
 
   try {
     const [rows] = await pool.query(
       `
       SELECT 
-        o.order_id,
-        o.date_ordered,
-        o.status,
-        p.product_name,
-        p.price,
-        oi.quantity,
-        (p.price * oi.quantity) AS item_total,
-        p.image_url
-      FROM orders o
-      JOIN order_items oi ON o.order_id = oi.order_id
-      JOIN products p ON oi.product_id = p.product_id
-      WHERE o.customer_id = ? AND oi.store_id = ?
-      ORDER BY o.date_ordered DESC
+    o.order_id,
+    o.date_ordered,
+    o.status,
+    p.product_id,            -- add this
+    p.product_name,
+    p.price,
+    oi.quantity,
+    (p.price * oi.quantity) AS item_total,
+    p.image_url
+  FROM orders o
+  JOIN order_items oi ON o.order_id = oi.order_id
+  JOIN products p ON oi.product_id = p.product_id
+  WHERE o.customer_id = ? AND oi.store_id = ?
+  ORDER BY o.date_ordered DESC
       `,
       [customerId, storeId]
     );
@@ -42,6 +42,7 @@ router.get('/customer/:customerId/store/:storeId/orders', async (req, res) => {
         };
       }
       grouped[row.order_id].items.push({
+        product_id: row.product_id,   // add thi
         product_name: row.product_name,
         quantity: row.quantity,
         price: row.price,
@@ -65,5 +66,48 @@ router.get('/customer/:customerId/store/:storeId/orders', async (req, res) => {
     });
   }
 });
+
+router.post('/cusreviews',verifyCustomerToken, async (req, res) => {
+  const { customer_id, product_id, store_id, rating, review_description } = req.body;
+
+  // Basic validation
+  if (!customer_id || !product_id || !store_id || !rating) {
+    return res.status(400).json({ error: 'Missing required fields' });
+  }
+
+  try {
+    console.log('Review Payload:', { customer_id, product_id, store_id, rating, review_description });
+
+    // Optional: Check if product_id exists
+    const [productCheck] = await pool.query(
+      'SELECT product_id FROM products WHERE product_id = ? AND store_id = ?',
+      [product_id, store_id]
+    );
+
+    if (productCheck.length === 0) {
+      return res.status(400).json({ error: 'Invalid product_id or store_id' });
+    }
+
+    const sql = `
+      INSERT INTO feedback (
+        review_date, customer_id, rating, product_id, store_id, review_description
+      ) VALUES (NOW(), ?, ?, ?, ?, ?)
+    `;
+
+    await pool.query(sql, [
+      customer_id,
+      rating,
+      product_id,
+      store_id,
+      review_description || ''
+    ]);
+
+    res.json({ message: '✅ Feedback submitted successfully' });
+  } catch (err) {
+    console.error('❌ Error inserting feedback:', err);
+    res.status(500).json({ error: 'Server error submitting feedback' });
+  }
+});
+
 
 module.exports = router;

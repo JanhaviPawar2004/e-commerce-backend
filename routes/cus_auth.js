@@ -3,16 +3,8 @@ const router = express.Router();
 const mysql = require('mysql2/promise');
 const jwt = require('jsonwebtoken');
 
-// DB pool
-const pool = mysql.createPool({
-  host: 'localhost',
-  user: 'root',
-  password: '',
-  database: 'e-commerce-db',
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0
-});
+const pool = require('./db').promise(); // Make sure to use promise wrapper
+
 
 // --- Customer Signup ---
 router.post('/signup', async (req, res) => {
@@ -82,7 +74,7 @@ router.post('/login', async (req, res) => {
           store_id: customer.store_id,
           user_type: 'customer'
         },
-        'your-secret-key',
+        process.env.JWT_SECRET,
         { expiresIn: '1h' }
       )
     });

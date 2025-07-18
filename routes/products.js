@@ -4,6 +4,7 @@ const pool = require('./db').promise(); // Adjust path as needed
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const { authenticateShopOwner } = require('./middleware'); // path as needed
 
 // ---- Multer Config ----
 const storage = multer.diskStorage({
@@ -23,22 +24,24 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 // ---- GET /api/products?storeId=... ----
-router.get('/', async (req, res) => {
+router.get('/',authenticateShopOwner, async (req, res) => {
   const store_id = req.query.storeId;
   if (!store_id) return res.status(400).json({ error: 'storeId is required' });
 
   const query = `
-    SELECT 
-      p.*, 
-      IFNULL(SUM(oi.quantity), 0) AS total_sold
-    FROM 
-      products p
-    LEFT JOIN 
-      order_items oi ON p.product_id = oi.product_id AND oi.store_id = ?
-    WHERE 
-      p.store_id = ?
-    GROUP BY 
-      p.product_id
+   SELECT 
+  p.*, 
+  AVG(f.rating) AS avg_rating,
+  IFNULL(SUM(oi.quantity), 0) AS total_sold
+FROM 
+  products p
+LEFT JOIN feedback f ON p.product_id = f.product_id AND f.store_id = p.store_id
+LEFT JOIN order_items oi ON p.product_id = oi.product_id AND oi.store_id = p.store_id
+WHERE 
+  p.store_id = 201
+GROUP BY 
+  p.product_id;
+
   `;
 
   try {
@@ -51,7 +54,7 @@ router.get('/', async (req, res) => {
 });
 
 // ---- GET /api/products/categories?storeId=... ----
-router.get('/categories', async (req, res) => {
+router.get('/categories',authenticateShopOwner, async (req, res) => {
   const store_id = req.query.storeId;
   if (!store_id) return res.status(400).json({ error: 'storeId is required' });
 
@@ -67,7 +70,7 @@ router.get('/categories', async (req, res) => {
 });
 
 // ---- GET /api/products/category-counts?storeId=... ----
-router.get('/category-counts', async (req, res) => {
+router.get('/category-counts',authenticateShopOwner, async (req, res) => {
   const store_id = req.query.storeId;
   if (!store_id) return res.status(400).json({ error: 'storeId is required' });
 
@@ -88,7 +91,7 @@ router.get('/category-counts', async (req, res) => {
 });
 
 // ---- POST /api/products/add?storeId=... ----
-router.post('/add', upload.single('image'), async (req, res) => {
+router.post('/add',authenticateShopOwner, upload.single('image'), async (req, res) => {
   const store_id = req.query.storeId;
   if (!store_id) return res.status(400).json({ error: 'storeId is required' });
 
@@ -119,7 +122,7 @@ router.post('/add', upload.single('image'), async (req, res) => {
 });
 
 // ---- GET /api/products/filter?storeId=... ----
-router.get('/filter', async (req, res) => {
+router.get('/filter',authenticateShopOwner, async (req, res) => {
   const store_id = req.query.storeId;
   if (!store_id) return res.status(400).json({ error: 'storeId is required' });
 
@@ -192,7 +195,7 @@ router.get('/filter', async (req, res) => {
 
 
 // GET /api/products/low-stock/:storeId
-router.get('/low-stock', async (req, res) => {
+router.get('/low-stock',authenticateShopOwner, async (req, res) => {
   const store_id = req.query.storeId;
   try {
     const [results] = await pool.query(
@@ -206,5 +209,54 @@ router.get('/low-stock', async (req, res) => {
   }
 });
 
+//edit products apiii
+
+router.get('/:productId',authenticateShopOwner, async (req, res) => {
+  const { productId } = req.params;
+
+  try {
+    const [rows] = await pool.query('SELECT * FROM products WHERE product_id = ?', [productId]);
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('❌ Error fetching product:', err);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+
+router.put('/:productId',authenticateShopOwner, upload.single('image'), async (req, res) => {
+  const { productId } = req.params;
+  const { product_name, price, product_category, description, stock_quantity } = req.body;
+  const image_url = req.file ? `uploads/${req.file.filename}` : null;
+
+  let query = `
+    UPDATE products SET 
+      product_name = ?, 
+      price = ?, 
+      product_category = ?, 
+      description = ?, 
+      stock_quantity = ?
+  `;
+  const params = [product_name, price, product_category, description, stock_quantity];
+
+  if (image_url) {
+    query += `, image_url = ?`;
+    params.push(image_url);
+  }
+
+  query += ` WHERE product_id = ?`;
+  params.push(productId);
+
+  try {
+    const [result] = await pool.query(query, params);
+    res.json({ message: '✅ Product updated successfully' });
+  } catch (err) {
+    console.error('❌ Error updating product:', err);
+    res.status(500).json({ error: 'Failed to update product' });
+  }
+});
 
 module.exports = router;

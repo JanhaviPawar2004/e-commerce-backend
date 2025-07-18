@@ -1,9 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('./db').promise(); // Adjust path as needed
+const { authenticateShopOwner } = require('./middleware'); // path as needed
 
 // GET all todos for a specific store
-router.get('/:storeId', async (req, res) => {
+router.get('/:storeId',authenticateShopOwner, async (req, res) => {
 
   const { storeId } = req.params;
 //   console.log('📥 Getting todos for store:', storeId); // ADD THIS LINE
@@ -21,7 +22,7 @@ router.get('/:storeId', async (req, res) => {
 });
 
 // POST a new todo
-router.post('/', async (req, res) => {
+router.post('/',authenticateShopOwner, async (req, res) => {
   const { store_id, task_text } = req.body;
 
   if (!store_id || !task_text) {
@@ -41,7 +42,7 @@ router.post('/', async (req, res) => {
 });
 
 // PUT update a todo
-router.put('/:taskId', async (req, res) => {
+router.put('/:taskId',authenticateShopOwner, async (req, res) => {
   const { taskId } = req.params;
   const { task_text } = req.body;
 
@@ -62,7 +63,7 @@ router.put('/:taskId', async (req, res) => {
 });
 
 // DELETE a todo
-router.delete('/:taskId', async (req, res) => {
+router.delete('/:taskId',authenticateShopOwner, async (req, res) => {
   const { taskId } = req.params;
 
   try {

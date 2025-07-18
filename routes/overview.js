@@ -1,10 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('./db').promise(); // ✅ Wrap it with .promise()
+const { authenticateShopOwner } = require('./middleware'); // path as needed
 
 
 // GET /api/overview/:storeId
-router.get('/:storeId', async (req, res) => {
+router.get('/:storeId',authenticateShopOwner, async (req, res) => {
   const { storeId } = req.params;
 
   try {
@@ -39,6 +40,7 @@ router.get('/:storeId', async (req, res) => {
       JOIN products p ON oi.product_id = p.product_id
       WHERE oi.store_id = ?
       GROUP BY oi.product_id
+      
       ORDER BY sold DESC
       LIMIT 5
     `, [storeId]);

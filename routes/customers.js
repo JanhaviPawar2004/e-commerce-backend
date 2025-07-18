@@ -1,9 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('./db').promise(); // Make sure this is your promise-based db connection
+const { authenticateShopOwner } = require('./middleware'); // path as needed
 
 // GET /api/customers?storeId=123
-router.get('/', async (req, res) => {
+router.get('/',authenticateShopOwner, async (req, res) => {
   const storeId = req.query.storeId;
 
   if (!storeId) {
@@ -37,8 +38,10 @@ router.get('/', async (req, res) => {
 });
 
 // POST /api/customers/add
-router.post('/add', async (req, res) => {
-  const { storeId, customer_name, email, phone_number, address, password } = req.body;
+router.post('/add',authenticateShopOwner, async (req, res) => {
+  const storeId = req.query.storeId;
+
+  const { customer_name, email, phone_number, address, password } = req.body;
 
   if (!storeId || !customer_name || !email || !phone_number || !password) {
     return res.status(400).json({ message: 'Missing required fields' });

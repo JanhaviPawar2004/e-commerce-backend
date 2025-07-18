@@ -48,6 +48,11 @@ app.use('/api/payment', paymentRoutes);
 app.use('/api/todos',todoRoutes);
 app.use('/api/customer/auth', customerAuthRoutes);
 
+
+const adminOwnerRoutes = require('./routes/admin-owner');
+app.use('/api/admin', adminOwnerRoutes);
+
+
 app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });

@@ -1,9 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('./db').promise(); // Ensure .promise() is used for async/await
+const { authenticateShopOwner } = require('./middleware'); // path as needed
 
 // GET /api/statistics?storeId=201 — Total stats
-router.get('/', async (req, res) => {
+router.get('/',authenticateShopOwner, async (req, res) => {
   const { storeId } = req.query;
 
   if (!storeId) return res.status(400).json({ error: 'storeId is required' });
@@ -28,7 +29,7 @@ router.get('/', async (req, res) => {
 });
 
 // GET /api/statistics/by-date?storeId=201 — Daily sales by type
-router.get('/by-date', async (req, res) => {
+router.get('/by-date',authenticateShopOwner, async (req, res) => {
   const { storeId } = req.query;
 
   if (!storeId) return res.status(400).json({ error: 'storeId is required' });
