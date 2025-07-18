@@ -26,8 +26,6 @@ const cartRoutes = require('./routes/carts');
 const paymentRoutes = require('./routes/payment');
 
 app.use(cors());
-app.options('*', cors());  // explicitly handle OPTIONS requests for all routes
-
 app.use(express.json());
 app.get('/healthz', (req, res) => res.status(200).send('OK'));
 

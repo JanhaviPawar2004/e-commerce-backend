@@ -79,7 +79,7 @@ router.post('/cart-items',verifyCustomerToken, async (req, res) => {
 });
 
 // ✅ Get items in cart
-router.get('/carts/:storeId/:customerId/items', async (req, res) => {
+router.get('/carts/:storeId/:customerId/items',verifyCustomerToken, async (req, res) => {
   const { storeId, customerId } = req.params;
 
   const query = `
