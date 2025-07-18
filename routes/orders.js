@@ -3,6 +3,7 @@ const router = express.Router();
 const pool = require('./db').promise(); // ✅ Wrap it with .promise()
 const nodemailer = require('nodemailer'); // Already used in your app
 const { authenticateShopOwner } = require('./middleware'); // path as needed
+const { REACT_APP_FRONTEND_BASE_URL } = process.env;
 
 // ✅ GET: all orders for a store
 router.get('/',authenticateShopOwner, async (req, res) => {
