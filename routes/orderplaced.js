@@ -4,7 +4,7 @@ const pool = require('./db').promise(); // Make sure to use promise wrapper
 const { verifyCustomerToken } = require('./middleware');
 
 // GET /api/customer/:customerId/store/:storeId/orders
-router.get('/customer/:customerId/store/:storeId/orders',verifyCustomerToken, async (req, res) => {
+router.get('/customer/:customerId/store/:storeId/orders', async (req, res) => {
   const { customerId, storeId } = req.params;
 
   try {
@@ -67,7 +67,7 @@ router.get('/customer/:customerId/store/:storeId/orders',verifyCustomerToken, as
   }
 });
 
-router.post('/cusreviews',verifyCustomerToken, async (req, res) => {
+router.post('/cusreviews', async (req, res) => {
   const { customer_id, product_id, store_id, rating, review_description } = req.body;
 
   // Basic validation
