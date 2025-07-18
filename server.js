@@ -24,8 +24,13 @@ const customerOrderPlaced = require('./routes/orderplaced');
 const storeDetailsRoute = require('./routes/storeDetails');
 const cartRoutes = require('./routes/carts');
 const paymentRoutes = require('./routes/payment');
+app.use(cors({
+  origin: 'https://e-commerce-frontend-rose-tau.vercel.app',
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Authorization', 'Content-Type'],
+}));
 
-app.use(cors());
+
 app.use(express.json());
 app.get('/healthz', (req, res) => res.status(200).send('OK'));
 
