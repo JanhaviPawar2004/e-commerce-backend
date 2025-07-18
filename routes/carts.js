@@ -137,7 +137,7 @@ router.delete('/cart-items/:item_id',verifyCustomerToken, async (req, res) => {
   }
 });
 
-router.post('/cart/orders',verifyCustomerToken, async (req, res) => {
+router.post('/cart/orders', async (req, res) => {
   const { customer_id, store_id, total_amount, status, items } = req.body;
   const now = new Date();
 
