@@ -231,7 +231,7 @@ router.put('/:orderId/status',authenticateShopOwner, async (req, res) => {
         <p>Hi <strong>${customer.customer_name}</strong>,</p>
         <p>Your order <strong>#${orderId}</strong> has been delivered! 🎉</p>
         <p>We'd love to hear what you think about your purchase.</p>
-        <p>👉 <a href="http://localhost:3000/review?customerId=${customer.customer_id}&orderId=${orderId}&storeId=${storeId}">Leave a review</a></p>
+        <p>👉 <a href="${REACT_APP_FRONTEND_BASE_URL}/review?customerId=${customer.customer_id}&orderId=${orderId}&storeId=${storeId}">Leave a review</a></p>
         <br/>
         <p>Thank you for shopping with Dukaanify!</p>
       `
