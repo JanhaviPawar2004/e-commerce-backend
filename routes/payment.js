@@ -25,8 +25,8 @@ router.post('/create-checkout-session', async (req, res) => {
         quantity: item.quantity,
       })),
       mode: 'payment',
-      success_url: `http://localhost:3000/store/${storeId}/success?customerId=${customerId}`,
-      cancel_url: `http://localhost:3000/store/${storeId}/cancel?customerId=${customerId}`,
+      success_url: `${process.env.REACT_APP_FRONTEND_BASE_URL}/store/${storeId}/success?customerId=${customerId}`,
+      cancel_url: `${process.env.REACT_APP_FRONTEND_BASE_URL}/store/${storeId}/cancel?customerId=${customerId}`,
     });
 
     res.json({ id: session.id });
