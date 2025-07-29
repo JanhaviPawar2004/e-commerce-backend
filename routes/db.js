@@ -15,15 +15,31 @@
 const mysql = require('mysql2');
 require('dotenv').config();  // Load .env variables
 
+// const pool = mysql.createPool({
+//   host: process.env.DB_HOST,
+//   port: process.env.DB_PORT,  // include port
+//   user: process.env.DB_USER,
+//   password: process.env.DB_PASSWORD,
+//   database: process.env.DB_NAME,
+//   waitForConnections: true,
+//   connectionLimit: 10,
+//   queueLimit: 0
+// });
+
+// module.exports = pool;
+
+
+const isLocal = process.env.NODE_ENV !== 'production';
+
 const pool = mysql.createPool({
-  host: process.env.DB_HOST,
-  port: process.env.DB_PORT,  // include port
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,
+  host: isLocal ? 'localhost' : process.env.DB_HOST,
+  port: isLocal ? 3306 : process.env.DB_PORT,
+  user: isLocal ? 'root' : process.env.DB_USER,
+  password: isLocal ? '' : process.env.DB_PASSWORD,
+  database: isLocal ? 'new-e-commerce' : process.env.DB_NAME,
   waitForConnections: true,
   connectionLimit: 10,
-  queueLimit: 0
+  queueLimit: 0,
 });
 
 module.exports = pool;
